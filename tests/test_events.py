@@ -10,7 +10,8 @@ def test_get_events_returns_200_and_proper_format(client):
     
     events = response.json()["events"]
     assert isinstance(events, list)
-    assert all(key in ["id", "title", "starts_at", "ends_at", "location"] for key in events[0].keys())
+    expected_keys = {"id", "title", "starts_at", "ends_at", "location"}
+    assert set(events[0].keys()) == expected_keys
 
 
 def test_get_events_returns_correct_data(client, sample_event):
