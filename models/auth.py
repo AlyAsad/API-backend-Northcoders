@@ -1,9 +1,19 @@
 from pydantic import BaseModel
+from datetime import datetime
 
 
-class LoginRequest(BaseModel):
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+
+
+class _RegisterResponse(BaseModel):
     id: int
-    title: str
-    starts_at: datetime
-    ends_at: datetime
-    location: str
+    name: str
+    email: str
+    created_at: datetime
+
+
+class RegisterResponse(BaseModel):
+    user: _RegisterResponse
