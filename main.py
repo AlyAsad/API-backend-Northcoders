@@ -3,9 +3,11 @@ from fastapi.exceptions import HTTPException, RequestValidationError
 from fastapi.responses import JSONResponse
 
 from routes.events import router as events_router
+from routes.auth_api import router as auth_router
 
 app = FastAPI(title="Events booking API", debug=True)
 app.include_router(events_router)
+app.include_router(auth_router)
 
 
 #overriding 422 to 400 since it makes more sense
