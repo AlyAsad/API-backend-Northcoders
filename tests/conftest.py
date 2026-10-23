@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from db.connection import get_connection
 from main import app
+from routes.auth import hash_password
 
 
 @pytest.fixture
@@ -41,21 +42,25 @@ def static():
 
 @pytest.fixture
 def sample_user():
+    email = "sample_user@email.com"
+    password = "sample_password"
     conn = get_connection()
     with conn.cursor() as cur:
         cur.execute(
             """
             INSERT INTO users (name, email, password)
-            VALUES ('sample_user', 'sample_user@email.com', 'sample_password')
+            VALUES ('sample_user', %s, %s)
             RETURNING id
-            """
+            """,
+            (email, hash_password(password))
         )
         user_id = cur.fetchone()[0]
         conn.commit()
-        yield user_id
+        yield user_id, email, password
         cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
     conn.commit()
     conn.close()
+
 
 
 @pytest.fixture
@@ -87,7 +92,7 @@ def sample_event(sample_user, sample_venue):
             VALUES ('sample_event', 'sample description', '2026-06-18T18:30:00+01:00', '2026-06-18T21:00:00+01:00', %s, %s)
             RETURNING id
             """,
-            (sample_user, sample_venue)
+            (sample_user[0], sample_venue)
         )
         event_id = cur.fetchone()[0]
         conn.commit()
@@ -107,7 +112,7 @@ def sample_rsvp(sample_user, sample_event):
             VALUES (%s, %s)
             RETURNING id
             """,
-            (sample_user, sample_event)
+            (sample_user[0], sample_event)
         )
         rsvp_id = cur.fetchone()[0]
         conn.commit()
