@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status, Depends
 from db.connection import get_connection
-from models.events import EventForList, AllEvents
+from models.events import EventForList, AllEvents, RSVPResponse
 from models.events import EventResponse
 import psycopg2.extras
+from routes.auth import get_current_user_id
 
 router = APIRouter(prefix="/api/events", tags=["Events"])
 
@@ -33,9 +34,6 @@ def get_events():
 
 
 
-
-
-
 @router.get("/{id}", response_model=EventResponse)
 def get_event_by_id(id: int):
     conn = get_connection()
@@ -59,3 +57,36 @@ def get_event_by_id(id: int):
         )
 
     return EventResponse(event=row)
+
+
+
+@router.post("/{event_id}/rsvp", status_code=status.HTTP_201_CREATED)
+def rsvp_to_event(event_id: int, user_id: int = Depends(get_current_user_id)) -> RSVPResponse:
+    conn = get_connection()
+
+    # check if user already rsvp'ed before
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT * FROM rsvps " \
+            "WHERE attendee_id = %s AND event_id = %s;",
+            (user_id, event_id),
+        )
+        rsvp = cursor.fetchone()
+
+    if rsvp:
+        raise HTTPException(status_code=409, detail="Already RSVP'd")
+
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+        try:
+            cursor.execute(
+                "INSERT INTO rsvps (attendee_id, event_id) VALUES (%s, %s) RETURNING *;",
+                (user_id, event_id),
+            )
+            row = cursor.fetchone()
+            conn.commit()
+            conn.close()
+
+        except psycopg2.errors.ForeignKeyViolation:
+            raise HTTPException(status_code=404, detail="Event not found")
+        
+    return {"rsvp": row}

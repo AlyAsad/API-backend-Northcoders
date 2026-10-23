@@ -67,7 +67,7 @@ def test_successful_login_returns_200_and_token(client, sample_user):
     response = login_user(client, sample_user)
 
     assert response.status_code == 200
-    assert "token" in response.json()
+    assert "access_token" in response.json()
     assert "token_type" in response.json()
     assert response.json()["token_type"] == "bearer"
 

@@ -28,3 +28,14 @@ class FullEvent(BaseModel):
 
 class EventResponse(BaseModel):
     event: FullEvent
+
+
+class _RSVPResponse(BaseModel):
+    id: int
+    attendee_id : int
+    event_id : int
+    created_at: datetime
+
+
+class RSVPResponse(BaseModel):
+    rsvp: _RSVPResponse

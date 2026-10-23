@@ -26,7 +26,7 @@ def login_user(details: OAuth2PasswordRequestForm = Depends()):
         raise HTTPException(status_code=401, detail="Invalid details")
 
     token = create_access_token(row[0])
-    return {"token": token, "token_type": "bearer"}
+    return {"access_token": token, "token_type": "bearer"}
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)

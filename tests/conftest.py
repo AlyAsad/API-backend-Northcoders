@@ -116,7 +116,7 @@ def sample_rsvp(sample_user, sample_event):
         )
         rsvp_id = cur.fetchone()[0]
         conn.commit()
-        yield rsvp_id
+        yield rsvp_id, sample_user, sample_event
         cur.execute("DELETE FROM rsvps WHERE id = %s", (rsvp_id,))
     conn.commit()
     conn.close()
