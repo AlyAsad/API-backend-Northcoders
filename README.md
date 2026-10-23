@@ -17,7 +17,7 @@ Note: all commands should be run in the project root directory.
 Run `psql -f db/setup.sql`. This needs to only be done once, it creates the database locally on the system using Postgres.
 
 ### Step 3: Seeding the database
-Run `python db/seed.py` or the seed() function from the same file. 
+Run `python -m db.seed` or the seed() function from the same file. 
 
 This (re)creates the tables in the database, and seeds them with sample data. Should be run initially, and any subsequent time the database needs to be completely reset and reseeded.
 
@@ -30,3 +30,9 @@ You can access the API endpoints at: `http://127.0.0.1:8000/docs`, and send quer
 To test the API endpoints and overall system functionality, run `pytest`.
 
 Note: There is an autouse fixture in `conftest.py` that ensures that tests do not add/remove rows as a side-effect.
+
+## Features
+Full Authentication and Authorisation of users using bcrypt passwords and JWT tokens using native FastAPI routes.
+
+
+

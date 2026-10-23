@@ -1,6 +1,7 @@
-from connection import get_connection
+from db.connection import get_connection
 import json
 from psycopg2.extras import execute_values
+from routes.auth import hash_password
 
 
 def create_tables(conn):
@@ -23,11 +24,16 @@ def make_query(table, entry):
     return f"INSERT INTO {table} ({columns}) VALUES %s"
 
 
-
 def seed_tables(conn):
     tables = ["users", "venues", "events", "rsvps"]
     for table in tables:
         data = load_data("db/data/" + table + ".json")
+
+        # hashing user passwords
+        if table == "users":
+            for entry in data:
+                entry["password"] = hash_password(entry["password"])
+        
         query = make_query(table, data[0])
         values = [tuple(entry.values()) for entry in data]
 
