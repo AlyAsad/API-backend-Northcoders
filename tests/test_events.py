@@ -113,3 +113,87 @@ def test_delete_rsvp_doesnt_exist_returns_404(client, sample_user, sample_event)
                            headers={"Authorization": f"Bearer {token}"})
 
     assert response.status_code == 404
+
+
+## POST EVENT TESTS
+def test_post_event_success_returns_201_and_details(client, sample_user, sample_venue):
+    token = login_user(client, sample_user).json()["access_token"]
+    response = client.post(f"/api/events",
+                           headers={"Authorization": f"Bearer {token}"},
+                           json = {
+                               "title": "test_title",
+                               "description": "test_desc",
+                               "starts_at": "2025-08-15T18:00:00Z",
+                               "ends_at": "2025-08-15T21:00:00Z",
+                               "venue_id": sample_venue
+                           })
+
+    try:
+        assert response.status_code == 201
+        assert "event" in response.json()
+        assert response.json()["event"]["organiser_id"] == sample_user[0]
+        assert response.json()["event"]["venue_id"] == sample_venue
+    finally: # cleaning up the added event
+        conn = get_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM events WHERE id = %s", (response.json()["event"]["id"],))
+        conn.commit()
+        conn.close()
+
+
+def test_post_event_invalid_token_returns_401(client, sample_venue):
+    response = client.post(f"/api/events",
+                           headers={"Authorization": "Bearer faketoken"},
+                           json = {
+                               "title": "test_title",
+                               "description": "test_desc",
+                               "starts_at": "2025-08-15T18:00:00Z",
+                               "ends_at": "2025-08-15T21:00:00Z",
+                               "venue_id": sample_venue
+                           })
+
+    assert response.status_code == 401
+
+
+def test_post_event_venue_doesnt_exist_returns_404(client, sample_user):
+    token = login_user(client, sample_user).json()["access_token"]
+    response = client.post(f"/api/events",
+                           headers={"Authorization": f"Bearer {token}"},
+                           json = {
+                               "title": "test_title",
+                               "description": "test_desc",
+                               "starts_at": "2025-08-15T18:00:00Z",
+                               "ends_at": "2025-08-15T21:00:00Z",
+                               "venue_id": 99999999
+                           })
+
+    assert response.status_code == 404
+
+
+def test_post_event_missing_field_returns_400(client, sample_user):
+    token = login_user(client, sample_user).json()["access_token"]
+    response = client.post(f"/api/events",
+                           headers={"Authorization": f"Bearer {token}"},
+                           json = {
+                               "title": "test_title",
+                               "description": "test_desc",
+                               "starts_at": "2025-08-15T18:00:00Z",
+                               "ends_at": "2025-08-15T21:00:00Z"
+                           })
+
+    assert response.status_code == 400
+
+
+def test_post_event_invalid_date_returns_400(client, sample_user, sample_venue):
+    token = login_user(client, sample_user).json()["access_token"]
+    response = client.post(f"/api/events",
+                           headers={"Authorization": f"Bearer {token}"},
+                           json = {
+                               "title": "test_title",
+                               "description": "test_desc",
+                               "starts_at": "20258:00:00Z",
+                               "ends_at": "2025-08-15T21:00:00Z",
+                               "venue_id": sample_venue
+                           })
+
+    assert response.status_code == 400

@@ -39,3 +39,24 @@ class _RSVPResponse(BaseModel):
 
 class RSVPResponse(BaseModel):
     rsvp: _RSVPResponse
+
+
+class EventPostRequest(BaseModel):
+    title: str
+    description: str
+    starts_at: datetime
+    ends_at: datetime
+    venue_id: int
+
+class _EventPostResponse(BaseModel):
+    id: int
+    title: str
+    description: str
+    starts_at: datetime
+    ends_at: datetime
+    venue_id: int
+    organiser_id: int
+    created_at: datetime
+    
+class EventPostResponse(BaseModel):
+    event: _EventPostResponse

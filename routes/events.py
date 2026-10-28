@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from db.connection import get_connection
-from models.events import EventForList, AllEvents, RSVPResponse
+from models.events import EventForList, AllEvents, RSVPResponse, EventPostRequest, EventPostResponse
 from models.events import EventResponse
 import psycopg2.extras
 from routes.auth import get_current_user_id
@@ -111,3 +111,26 @@ def delete_event(event_id: int, user_id: int = Depends(get_current_user_id)) -> 
             raise HTTPException(status_code=404, detail="RSVP not found")
         
     return
+
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+def create_event(event: EventPostRequest, user_id: int = Depends(get_current_user_id)) -> EventPostResponse:
+    changes = event.model_dump()
+    
+    conn = get_connection()
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+        try:
+            cursor.execute(
+                "INSERT INTO events (title, description, starts_at, ends_at, venue_id, organiser_id) " \
+                "VALUES (%s, %s, %s, %s, %s, %s) " \
+                "RETURNING *;",
+                (*changes.values(), user_id),
+            )
+            row = cursor.fetchone()
+            conn.commit()
+            conn.close()
+
+        except psycopg2.errors.ForeignKeyViolation:
+            raise HTTPException(status_code=404, detail="Venue not found")
+        
+    return {"event": row}
