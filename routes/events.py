@@ -7,7 +7,6 @@ from routes.auth import get_current_user_id
 
 router = APIRouter(prefix="/api/events", tags=["Events"])
 
-
 @router.get("", response_model=AllEvents)
 def get_events():
     conn = get_connection()
@@ -90,3 +89,25 @@ def rsvp_to_event(event_id: int, user_id: int = Depends(get_current_user_id)) ->
             raise HTTPException(status_code=404, detail="Event not found")
         
     return {"rsvp": row}
+
+
+
+@router.delete("/{event_id}/rsvp/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_event(event_id: int, user_id: int = Depends(get_current_user_id)) -> None:
+    conn = get_connection()
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "DELETE FROM rsvps " \
+            "WHERE attendee_id = %s AND event_id = %s " \
+            "RETURNING *;",
+            (user_id, event_id),
+        )
+        row = cursor.fetchone()
+        conn.commit()
+        conn.close()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="RSVP not found")
+        
+    return

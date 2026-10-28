@@ -88,3 +88,28 @@ def test_duplicate_rsvp_returns_409(client, sample_rsvp):
                            headers={"Authorization": f"Bearer {token}"})
 
     assert response.status_code == 409
+
+
+## DELETION TESTS
+def test_delete_rsvp_returns_204_and_no_content(client, sample_rsvp):
+    token = login_user(client, sample_rsvp[1]).json()["access_token"]
+    response = client.delete(f"/api/events/{sample_rsvp[2]}/rsvp/me",
+                           headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 204
+    assert not response.content
+
+
+def test_delete_rsvp_invalid_token_returns_401(client, sample_rsvp):
+    response = client.delete(f"/api/events/{sample_rsvp[2]}/rsvp/me",
+                           headers={"Authorization": "Bearer faketoken"})
+
+    assert response.status_code == 401
+
+
+def test_delete_rsvp_doesnt_exist_returns_404(client, sample_user, sample_event):
+    token = login_user(client, sample_user).json()["access_token"]
+    response = client.delete(f"/api/events/{sample_event}/rsvp/me",
+                           headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 404
