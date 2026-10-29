@@ -26,6 +26,7 @@ class FullEvent(BaseModel):
     capacity: int
     created_at: datetime
 
+
 class EventResponse(BaseModel):
     event: FullEvent
 
@@ -48,6 +49,7 @@ class EventPostRequest(BaseModel):
     ends_at: datetime
     venue_id: int
 
+
 class _EventPostResponse(BaseModel):
     id: int
     title: str
@@ -58,5 +60,12 @@ class _EventPostResponse(BaseModel):
     organiser_id: int
     created_at: datetime
     
+    
 class EventPostResponse(BaseModel):
     event: _EventPostResponse
+
+
+class EventPatchRequest(BaseModel):
+    description: str | None
+    starts_at: datetime | None
+    ends_at: datetime | None

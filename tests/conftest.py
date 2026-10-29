@@ -62,6 +62,28 @@ def sample_user():
     conn.close()
 
 
+@pytest.fixture
+def sample_user2():
+    email = "sample_user2@email.com"
+    password = "sample_password"
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO users (name, email, password)
+            VALUES ('sample_user2', %s, %s)
+            RETURNING id
+            """,
+            (email, hash_password(password))
+        )
+        user_id = cur.fetchone()[0]
+        conn.commit()
+        yield user_id, email, password
+        cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+    conn.commit()
+    conn.close()
+
+
 
 @pytest.fixture
 def sample_venue():
@@ -96,7 +118,7 @@ def sample_event(sample_user, sample_venue):
         )
         event_id = cur.fetchone()[0]
         conn.commit()
-        yield event_id
+        yield event_id, sample_user, sample_venue
         cur.execute("DELETE FROM events WHERE id = %s", (event_id,))
     conn.commit()
     conn.close()
@@ -112,11 +134,11 @@ def sample_rsvp(sample_user, sample_event):
             VALUES (%s, %s)
             RETURNING id
             """,
-            (sample_user[0], sample_event)
+            (sample_user[0], sample_event[0])
         )
         rsvp_id = cur.fetchone()[0]
         conn.commit()
-        yield rsvp_id, sample_user, sample_event
+        yield rsvp_id, sample_user, sample_event[0]
         cur.execute("DELETE FROM rsvps WHERE id = %s", (rsvp_id,))
     conn.commit()
     conn.close()

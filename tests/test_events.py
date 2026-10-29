@@ -19,11 +19,11 @@ def test_get_events_returns_200_and_proper_format(client):
 def test_get_events_returns_correct_data(client, sample_event):
     response = client.get("/api/events")
     events = response.json()["events"]
-    assert any(event["id"] == sample_event for event in events), "Not fetching correct event data!"
+    assert any(event["id"] == sample_event[0] for event in events), "Not fetching correct event data!"
 
 
 def test_get_event_by_id_returns_200_and_proper_format(client, sample_event):
-    response = client.get(f"/api/events/{sample_event}")
+    response = client.get(f"/api/events/{sample_event[0]}")
     assert response.status_code == 200
     assert "event" in response.json()
     
@@ -34,7 +34,7 @@ def test_get_event_by_id_returns_200_and_proper_format(client, sample_event):
 
 
 def test_get_event_by_id_returns_correct_data(client, sample_event):
-    response = client.get(f"/api/events/{sample_event}")
+    response = client.get(f"/api/events/{sample_event[0]}")
     event = response.json()["event"] 
     assert event["title"] == "sample_event", "Not fetching correct event data!"
 
@@ -51,14 +51,14 @@ def test_get_event_by_id_raises_correct_errors(client):
 ### RSVP TESTS
 def test_rsvp_to_event_success_returns_201_and_details(client, sample_user, sample_event):
     token = login_user(client, sample_user).json()["access_token"]
-    response = client.post(f"/api/events/{sample_event}/rsvp",
+    response = client.post(f"/api/events/{sample_event[0]}/rsvp",
                            headers={"Authorization": f"Bearer {token}"})
 
     try:
         assert response.status_code == 201
         assert "rsvp" in response.json()
         assert response.json()["rsvp"]["attendee_id"] == sample_user[0]
-        assert response.json()["rsvp"]["event_id"] == sample_event
+        assert response.json()["rsvp"]["event_id"] == sample_event[0]
     finally: # cleaning up the added rsvp
         conn = get_connection()
         with conn.cursor() as cursor:
@@ -68,7 +68,7 @@ def test_rsvp_to_event_success_returns_201_and_details(client, sample_user, samp
 
 
 def test_rsvp_invalid_token_returns_401(client, sample_event):
-    response = client.post(f"/api/events/{sample_event}/rsvp",
+    response = client.post(f"/api/events/{sample_event[0]}/rsvp",
                            headers={"Authorization": "Bearer faketoken"})
 
     assert response.status_code == 401
@@ -109,7 +109,7 @@ def test_delete_rsvp_invalid_token_returns_401(client, sample_rsvp):
 
 def test_delete_rsvp_doesnt_exist_returns_404(client, sample_user, sample_event):
     token = login_user(client, sample_user).json()["access_token"]
-    response = client.delete(f"/api/events/{sample_event}/rsvp/me",
+    response = client.delete(f"/api/events/{sample_event[0]}/rsvp/me",
                            headers={"Authorization": f"Bearer {token}"})
 
     assert response.status_code == 404
@@ -197,3 +197,83 @@ def test_post_event_invalid_date_returns_400(client, sample_user, sample_venue):
                            })
 
     assert response.status_code == 400
+
+
+def test_patch_events_success_returns_200_and_details(client, sample_event):
+    token = login_user(client, sample_event[1]).json()["access_token"]
+    response = client.patch(f"/api/events/{sample_event[0]}",
+                           headers={"Authorization": f"Bearer {token}"},
+                           json = {
+                               "description": "new_test_description",
+                               "starts_at": "2025-08-15T19:00:00Z",
+                               "ends_at": "2025-08-15T20:00:00Z",
+                           })
+
+    assert response.status_code == 200
+    assert "event" in response.json()
+    assert response.json()["event"]["id"] == sample_event[0]
+    assert response.json()["event"]["organiser_id"] == sample_event[1][0]
+    assert response.json()["event"]["description"] == "new_test_description"
+
+
+def test_patch_invalid_token_returns_401(client, sample_event):
+    response = client.patch(f"/api/events/{sample_event[0]}",
+                           headers={"Authorization": f"Bearer faketoken"},
+                           json = {
+                               "description": "new_test_description",
+                               "starts_at": "2025-08-15T19:00:00Z",
+                               "ends_at": "2025-08-15T20:00:00Z",
+                           })
+
+    assert response.status_code == 401
+
+
+def test_patch_event_different_user_returns_403(client, sample_user2, sample_event):
+    token = login_user(client, sample_user2).json()["access_token"]
+    response = client.patch(f"/api/events/{sample_event[0]}",
+                           headers={"Authorization": f"Bearer {token}"},
+                           json = {
+                               "description": "new_test_description",
+                               "starts_at": "2025-08-15T19:00:00Z",
+                               "ends_at": "2025-08-15T20:00:00Z",
+                           })
+
+    assert response.status_code == 403
+
+
+def test_patch_event_not_found_returns_404(client, sample_user):
+    token = login_user(client, sample_user).json()["access_token"]
+    response = client.patch(f"/api/events/9999999999",
+                           headers={"Authorization": f"Bearer {token}"},
+                           json = {
+                               "description": "new_test_description",
+                               "starts_at": "2025-08-15T19:00:00Z",
+                               "ends_at": "2025-08-15T20:00:00Z",
+                           })
+
+    assert response.status_code == 404
+
+
+def test_patch_event_invalid_date_returns_400(client, sample_event):
+    token = login_user(client, sample_event[1]).json()["access_token"]
+    response = client.patch(f"/api/events/{sample_event[0]}",
+                           headers={"Authorization": f"Bearer {token}"},
+                           json = {
+                               "description": "new_test_description",
+                               "starts_at": "invalid",
+                               "ends_at": "2025-08-15T20:00:00Z",
+                           })
+
+    assert response.status_code == 400
+
+    token = login_user(client, sample_event[1]).json()["access_token"]
+    response2 = client.patch(f"/api/events/{sample_event[0]}",
+                           headers={"Authorization": f"Bearer {token}"},
+                           json = {
+                               "description": "new_test_description",
+                               "starts_at": "2025-08-15T20:00:00Z",
+                               "ends_at": "2025-08-15T19:00:00Z",
+                           })
+
+    assert response2.status_code == 400
+    

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from db.connection import get_connection
-from models.events import EventForList, AllEvents, RSVPResponse, EventPostRequest, EventPostResponse
+from models.events import EventForList, AllEvents, RSVPResponse, EventPostRequest, EventPostResponse, EventPatchRequest
 from models.events import EventResponse
 import psycopg2.extras
 from routes.auth import get_current_user_id
@@ -104,11 +104,11 @@ def delete_event(event_id: int, user_id: int = Depends(get_current_user_id)) -> 
             (user_id, event_id),
         )
         row = cursor.fetchone()
-        conn.commit()
-        conn.close()
+    conn.commit()
+    conn.close()
 
-        if not row:
-            raise HTTPException(status_code=404, detail="RSVP not found")
+    if not row:
+        raise HTTPException(status_code=404, detail="RSVP not found")
         
     return
 
@@ -134,3 +134,51 @@ def create_event(event: EventPostRequest, user_id: int = Depends(get_current_use
             raise HTTPException(status_code=404, detail="Venue not found")
         
     return {"event": row}
+
+
+
+@router.patch("/{event_id}")
+def update_event(event_id: int, updates: EventPatchRequest, user_id: int = Depends(get_current_user_id)) -> EventPostResponse:
+    updates = updates.model_dump(exclude_unset=True)
+
+    conn = get_connection()
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor: # get current event details
+        cursor.execute(
+            "SELECT * FROM events " \
+            "WHERE id = %s;",
+            (event_id,)
+        )
+        event = cursor.fetchone()
+
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    if event["organiser_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Logged in user is not the organiser of event")
+
+    if not updates:
+        return {"event": event}
+
+    if "starts_at" in updates and "ends_at" in updates:
+        starts, ends = updates["starts_at"], updates["ends_at"]
+    elif "starts_at" in updates:
+        starts, ends = updates["starts_at"], event["ends_at"]
+    elif "ends_at" in updates:
+        starts, ends = event["starts_at"], updates["ends_at"]
+    
+    if ends <= starts:
+        raise HTTPException(status_code=400, detail="Invalid timings, event ends before starting")
+
+    # now updating
+    assignments = ", ".join(f"{column} = %s" for column in updates)
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor: # get current event details
+        cursor.execute(
+            f"UPDATE events SET {assignments} " \
+            "WHERE id = %s RETURNING *;",
+            (*updates.values(), event_id,)
+        )
+        event = cursor.fetchone()
+    conn.commit()
+    conn.close()
+
+    return {"event": event}
