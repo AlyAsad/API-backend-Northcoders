@@ -276,4 +276,54 @@ def test_patch_event_invalid_date_returns_400(client, sample_event):
                            })
 
     assert response2.status_code == 400
+
+
+def test_attendees_success_returns_200_and_details(client, sample_rsvp, sample_user, sample_user2):
+    token1 = login_user(client, sample_user).json()["access_token"]
+    response1 = client.get(f"/api/events/{sample_rsvp[2]}/attendees",
+                        headers={"Authorization": f"Bearer {token1}"})
     
+    assert response1.status_code == 200
+    assert "attendees" in response1.json()
+    assert len(response1.json()["attendees"]) == 1
+    assert response1.json()["attendees"][0]["id"] == sample_user[0]
+
+    token2 = login_user(client, sample_user2).json()["access_token"]
+    rsvp = client.post(f"/api/events/{sample_rsvp[2]}/rsvp",
+                           headers={"Authorization": f"Bearer {token2}"})
+
+    try:
+        response2 = client.get(f"/api/events/{sample_rsvp[2]}/attendees",
+                            headers={"Authorization": f"Bearer {token1}"})
+        
+        assert len(response2.json()["attendees"]) == 2
+        
+    finally: # cleaning up the added rsvp
+        conn = get_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM rsvps WHERE id = %s", (rsvp.json()["rsvp"]["id"],))
+        conn.commit()
+        conn.close()
+
+
+def test_attendees_unauthenticated_user_returns_403(client, sample_rsvp, sample_user2):
+    token1 = login_user(client, sample_user2).json()["access_token"]
+    response1 = client.get(f"/api/events/{sample_rsvp[2]}/attendees",
+                        headers={"Authorization": f"Bearer {token1}"})
+    
+    assert response1.status_code == 403
+
+
+def test_attendees_no_user_returns_401(client, sample_rsvp):
+    response1 = client.get(f"/api/events/{sample_rsvp[2]}/attendees",
+                        headers={"Authorization": f"Bearer faketoken"})
+
+    response1.status_code == 401
+
+
+def test_attendees_no_event_returns_404(client, sample_user):
+    token1 = login_user(client, sample_user).json()["access_token"]
+    response1 = client.get(f"/api/events/99999999999/attendees",
+                        headers={"Authorization": f"Bearer {token1}"})
+
+    assert response1.status_code == 404

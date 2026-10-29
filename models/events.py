@@ -59,8 +59,8 @@ class _EventPostResponse(BaseModel):
     venue_id: int
     organiser_id: int
     created_at: datetime
-    
-    
+
+
 class EventPostResponse(BaseModel):
     event: _EventPostResponse
 
@@ -69,3 +69,13 @@ class EventPatchRequest(BaseModel):
     description: str | None
     starts_at: datetime | None
     ends_at: datetime | None
+
+
+class _GetEventAttendees(BaseModel):
+    id: int
+    name: str
+    email: str
+
+
+class GetEventAttendees(BaseModel):
+    attendees: list[_GetEventAttendees]

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from db.connection import get_connection
-from models.events import EventForList, AllEvents, RSVPResponse, EventPostRequest, EventPostResponse, EventPatchRequest
+from models.events import EventForList, AllEvents, RSVPResponse, EventPostRequest, EventPostResponse, EventPatchRequest, GetEventAttendees
 from models.events import EventResponse
 import psycopg2.extras
 from routes.auth import get_current_user_id
@@ -171,7 +171,7 @@ def update_event(event_id: int, updates: EventPatchRequest, user_id: int = Depen
 
     # now updating
     assignments = ", ".join(f"{column} = %s" for column in updates)
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor: # get current event details
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
         cursor.execute(
             f"UPDATE events SET {assignments} " \
             "WHERE id = %s RETURNING *;",
@@ -182,3 +182,36 @@ def update_event(event_id: int, updates: EventPatchRequest, user_id: int = Depen
     conn.close()
 
     return {"event": event}
+
+
+@router.get("/{event_id}/attendees")
+def get_attendees(event_id: int, user_id: int = Depends(get_current_user_id)) -> GetEventAttendees:
+    conn = get_connection()
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor: # get event details
+        cursor.execute(
+            "SELECT * FROM events " \
+            "WHERE id = %s;",
+            (event_id,)
+        )
+        event = cursor.fetchone()
+
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    if event["organiser_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Logged in user is not the organiser of event")
+
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+        cursor.execute(
+            "SELECT u.id, u.name, u.email " \
+            "FROM rsvps r INNER JOIN users u " \
+                "ON r.attendee_id = u.id " \
+            "WHERE r.event_id = %s;",
+            (event_id,)
+        )
+        attendees = cursor.fetchall()
+    conn.close()
+
+    return {"attendees": attendees}
+
+
